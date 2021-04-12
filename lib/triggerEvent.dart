@@ -1,0 +1,4 @@
+enum TriggerEvent {
+  pressed, 
+  released
+}
