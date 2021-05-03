@@ -60,9 +60,11 @@ class FlutterZebraRfid {
         case "eventReadNotify": 
           assert(args["reader"] != null && args["reader"] is Map, "reader argument is not defined or is not a Map");
           assert(args["tagData"] != null && args["tagData"] is Map, "tagData argument is not defined or is not a Map");
-          _getAvailableReaderInfo(args["reader"])._eventReadNotify(
-            TagData.fromMap(args["tagData"])
-          );
+          if (args["tagData"]["tagId"] != null) {
+            _getAvailableReaderInfo(args["reader"])._eventReadNotify(
+              TagData.fromMap(args["tagData"])
+            );
+          }
           break;
 
         case "eventStatusNotify":
@@ -174,7 +176,7 @@ class FlutterZebraRfid {
     }
 
     for (var reader in _readers) {
-      reader.isActive = activeReaderIds.contains(reader.id);
+      reader._isActive = activeReaderIds.contains(reader.id);
     }
     return _readers;
   }

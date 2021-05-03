@@ -59,7 +59,7 @@ public class SwiftFlutterZebraRfidPlugin: NSObject, FlutterPlugin {
         case "getActiveReaders":
             let devices: NSMutableArray = NSMutableArray()
             var _devices = devices
-            apiDelegate.availableReaders = withUnsafeMutablePointer(to: &_devices) { ptr -> Array<srfidReaderInfo>? in
+            apiDelegate.activeReaders = withUnsafeMutablePointer(to: &_devices) { ptr -> Array<srfidReaderInfo>? in
                 let devicesPtr : AutoreleasingUnsafeMutablePointer<NSMutableArray?> = AutoreleasingUnsafeMutablePointer<NSMutableArray?>.init(ptr)
                 let r = _api.srfidGetActiveReadersList(devicesPtr)
                 if r == SRFID_RESULT_SUCCESS {
@@ -72,7 +72,7 @@ public class SwiftFlutterZebraRfidPlugin: NSObject, FlutterPlugin {
                 }
                 return nil
             }
-            result(apiDelegate.availableReaders!.map({ (reader: srfidReaderInfo) -> [String : Any] in
+            result(apiDelegate.activeReaders!.map({ (reader: srfidReaderInfo) -> [String : Any] in
                 return [
                     "name" : reader.getReaderName()!,
                     "id" : "\(reader.getReaderID())"

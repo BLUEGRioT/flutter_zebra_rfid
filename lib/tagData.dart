@@ -5,7 +5,9 @@ import 'package:flutter_zebra_rfid/accessOperationCode.dart';
 import 'package:flutter_zebra_rfid/flutter_zebra_rfid.dart';
 import 'package:convert/convert.dart';
 
+// ignore: must_be_immutable
 class TagData extends Equatable {
+  /// The tags identifier
   final String tagId;
   final DateTime? firstSeenTime;
   final DateTime? lastSeenTime;
@@ -61,8 +63,8 @@ class TagData extends Equatable {
       operationSucceed: map["operationSucceed"], 
       operationStatus: map["operationStatus"], 
       memoryBank: memoryBankFromKey(map["memoryBank"]), 
-      memoryBankData: Uint8List.fromList(hex.decode(map["memoryBankData"])), 
-      permaLockData: Uint8List.fromList(hex.decode(map["permaLockData"])), 
+      memoryBankData: Uint8List.fromList(hex.decode(map["memoryBankData"] ?? "")), 
+      permaLockData: Uint8List.fromList(hex.decode(map["permaLockData"] ?? "")), 
       modifiedWordCount: map["modifiedWordCount"], 
       g2v2Result: map["g2v2Result"], 
       g2v2Response: map["g2v2Response"]

@@ -12,6 +12,7 @@ class SdkApiDelegate: NSObject, srfidISdkApiDelegate {
     let channel: FlutterMethodChannel
     let api: srfidISdkApi
     var availableReaders: Array<srfidReaderInfo>?
+    var activeReaders: Array<srfidReaderInfo>?
     
     init(with channel: FlutterMethodChannel, api: srfidISdkApi) {
         self.channel = channel

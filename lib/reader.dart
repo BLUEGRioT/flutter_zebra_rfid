@@ -1,9 +1,17 @@
 part of flutter_zebra_rfid;
 
+/// Represent a RFID reader
 class Reader extends Object {
+
+  /// The reader's identifier
   final String id;
+
+  ///The reader's name
   String name;
-  bool isActive = false;
+
+  /// Indicates if the reader is active (connected)
+  bool get isActive => _isActive;
+  bool _isActive = false;
 
   final StreamController<TagData> _tagReadStreamController = StreamController<TagData>();
   Stream<TagData>? _tagReadingStream;
@@ -36,6 +44,8 @@ class Reader extends Object {
     return _readerInventoringStream!;
   }
 
+  bool _isLocating = false;
+  bool get isLocating => _isLocating;
   final StreamController<int> _proximityController = StreamController<int>();
   Stream<int>? _proximityStream;
   Stream<int> get proximityStream {
@@ -98,6 +108,7 @@ class Reader extends Object {
       "reader": this.id, 
       "tagEpcId": tagEpcId
     });
+    _isLocating = true;
     return result["status"];
   }
 
@@ -105,6 +116,7 @@ class Reader extends Object {
     final Map result = await FlutterZebraRfid._channel.invokeMethod('stopLocateTag', { 
       "reader": this.id
     });
+    _isLocating = false;
     return result["status"];
   }
 
@@ -152,12 +164,12 @@ class Reader extends Object {
 
   void _eventCommunicationSessionTerminated() {
     print("_eventCommunicationSessionTerminated: ${this.name}");
-    isActive = false;
+    _isActive = false;
   }
 
   void _eventCommunicationASCIIConnectionEstablished() {
     print("_eventCommunicationASCIIConnectionEstablished: ${this.name}");
-    isActive = true;
+    _isActive = true;
   }
 
   void _eventReadNotify(TagData tagData) {
@@ -193,7 +205,7 @@ class Reader extends Object {
 
   void _eventTriggerNotify(TriggerEvent event) {
     print("_eventTriggerNotify: ${this.name} => $event");
-    _isTriggerPressed = event == TriggerEvent.pressed;
+    _isTriggerPressed = (event == TriggerEvent.pressed);
     _readerTriggerController.add(_isTriggerPressed);
   }
 
