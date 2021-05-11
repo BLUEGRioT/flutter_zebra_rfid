@@ -119,7 +119,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                 Handler(Looper.getMainLooper()).post {
                     result.success(hashMapOf(
                             "status" to "OK",
-                            "tagData" to serializeTagData(tagData)
+                            "tagData" to serializeTagData(tagData, parseMemoryBank(memoryBank))
                     ))
                 }
             } catch (ex: InvalidUsageException) {
@@ -175,7 +175,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                 Handler(Looper.getMainLooper()).post {
                     result.success(hashMapOf(
                             "status" to "OK",
-                            "tagData" to serializeTagData(readAccessTag)
+                            "tagData" to serializeTagData(readAccessTag, parseMemoryBank(memoryBank))
                     ))
                 }
             } catch (ex: InvalidUsageException) {
@@ -430,7 +430,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             }
         }
 
-        fun serializeTagData(tagData: TagData): HashMap<String, Any?> {
+        fun serializeTagData(tagData: TagData, memoryBank: MEMORY_BANK): HashMap<String, Any?> {
             return hashMapOf(
                     "tagId" to tagData.tagID,
                     "firstSeenTime" to tagData.SeenTime?.upTime?.firstSeenTimeStamp,
@@ -443,7 +443,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                     "opCode" to tagData.opCode?.ordinal,
                     "operationSucceed" to (tagData.opStatus == ACCESS_OPERATION_STATUS.ACCESS_SUCCESS),
                     "operationStatus" to tagData.opStatus?.toString(),
-                    "memoryBank" to serializeMemoryBank(tagData.memoryBank),
+                    "memoryBank" to serializeMemoryBank(memoryBank),
                     "memoryBankData" to tagData.memoryBankData,
                     "permaLockData" to tagData.permaLockData,
                     "modifiedWordCount" to tagData.numberOfWords,
@@ -468,7 +468,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                                         "id" to reader.address,
                                         "name" to reader.name
                                 ),
-                                "tagData" to serializeTagData(this)
+                                "tagData" to serializeTagData(this, this.memoryBank)
                         ))
                     }
                 }

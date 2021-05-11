@@ -62,7 +62,7 @@ class TagData extends Equatable {
       opCode: map["opCode"] == null ? null : accessOperationCodeFromOrdial(map["opCode"]), 
       operationSucceed: map["operationSucceed"], 
       operationStatus: map["operationStatus"], 
-      memoryBank: memoryBankFromKey(map["memoryBank"]), 
+      memoryBank: memoryBankFromKey(map["memoryBank"] ?? MemoryBank.all.key), 
       memoryBankData: Uint8List.fromList(hex.decode(map["memoryBankData"] ?? "")), 
       permaLockData: Uint8List.fromList(hex.decode(map["permaLockData"] ?? "")), 
       modifiedWordCount: map["modifiedWordCount"], 
