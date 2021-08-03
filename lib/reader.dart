@@ -13,47 +13,24 @@ class Reader extends Object {
   bool get isActive => _isActive;
   bool _isActive = false;
 
-  final StreamController<TagData> _tagReadStreamController = StreamController<TagData>();
-  Stream<TagData>? _tagReadingStream;
-  Stream<TagData> get tagReadingStream {
-    if (_tagReadingStream == null) {
-      _tagReadingStream = _tagReadStreamController.stream.asBroadcastStream();
-    }
-    return _tagReadingStream!;
-  }
+  late StreamController<TagData> _tagReadStreamController;
+  Stream<TagData> get tagReadingStream  => _tagReadStreamController.stream;
 
   bool _isTriggerPressed = false;
   bool get isTriggerPressed => _isTriggerPressed;
-  final StreamController<bool> _readerTriggerController = StreamController<bool>();
-  Stream<bool>? _readerTriggerStream;
-  Stream<bool> get readerTriggerStream {
-    if (_readerTriggerStream == null) {
-      _readerTriggerStream = _readerTriggerController.stream.asBroadcastStream();
-    }
-    return _readerTriggerStream!;
-  }
+  late StreamController<bool> _readerTriggerController;
+  Stream<bool> get readerTriggerStream => _readerTriggerController.stream;
 
   bool _isInventoring = false;
   bool get isInventoring => _isInventoring;
-  final StreamController<bool> _readerInventoringController = StreamController<bool>();
-  Stream<bool>? _readerInventoringStream;
-  Stream<bool> get readerInventoringStream {
-    if (_readerInventoringStream == null) {
-      _readerInventoringStream = _readerInventoringController.stream.asBroadcastStream();
-    }
-    return _readerInventoringStream!;
-  }
+  late StreamController<bool> _readerInventoringController;
+  Stream<bool> get readerInventoringStream => _readerInventoringController.stream;
 
   bool _isLocating = false;
   bool get isLocating => _isLocating;
-  final StreamController<int> _proximityController = StreamController<int>();
-  Stream<int>? _proximityStream;
-  Stream<int> get proximityStream {
-    if (_proximityStream == null) {
-      _proximityStream = _proximityController.stream.asBroadcastStream();
-    }
-    return _proximityStream!;
-  }
+  late StreamController<int> _proximityController;
+  Stream<int> get proximityStream => _proximityController.stream;
+  Completer<void>? _connectionCompleter;
 
   Reader({
     required this.id, 
@@ -62,13 +39,27 @@ class Reader extends Object {
 
   void dispose() async { 
     await _tagReadStreamController.close();
+
+    await _readerTriggerController.close();
+
+    await _readerInventoringController.close();
+
+    await _proximityController.close();
   }
 
   Future<void> connect() async {
+    _tagReadStreamController = StreamController<TagData>.broadcast();
+    _readerTriggerController = StreamController<bool>.broadcast();
+    _readerInventoringController = StreamController<bool>.broadcast();
+    _proximityController = StreamController<int>.broadcast();
+
     if (isActive) {
       return;
     }
+
+    _connectionCompleter = Completer();
     await FlutterZebraRfid._channel.invokeMethod('connect', { "reader": this.id});
+    await _connectionCompleter!.future;
   }
 
   Future<String> startInventory({
@@ -170,6 +161,7 @@ class Reader extends Object {
   void _eventCommunicationASCIIConnectionEstablished() {
     print("_eventCommunicationASCIIConnectionEstablished: ${this.name}");
     _isActive = true;
+    _connectionCompleter?.complete();
   }
 
   void _eventReadNotify(TagData tagData) {
