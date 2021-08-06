@@ -59,7 +59,12 @@ class Reader extends Object {
 
     _connectionCompleter = Completer();
     await FlutterZebraRfid._channel.invokeMethod('connect', { "reader": this.id});
-    await _connectionCompleter!.future;
+    if (Platform.isIOS) {
+      await _connectionCompleter!.future;
+    }
+    else {
+      _isActive = true;
+    }
   }
 
   Future<String> startInventory({

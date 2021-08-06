@@ -2,6 +2,7 @@
 library flutter_zebra_rfid;
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 export 'tagData.dart';
