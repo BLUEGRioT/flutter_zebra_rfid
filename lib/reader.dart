@@ -121,7 +121,8 @@ class Reader extends Object {
     required MemoryBank memoryBank, 
     required int offset, 
     required int length, 
-    int password = 0
+    int password = 0, 
+    int maxRetries = 10
   }) async {
     final result = await FlutterZebraRfid._channel.invokeMethod('readTag', { 
       "reader": this.id, 
@@ -129,7 +130,8 @@ class Reader extends Object {
       "memoryBank": memoryBank.key, 
       "offset": offset, 
       "length": length, 
-      "password": password
+      "password": password, 
+      "maxRetries": maxRetries
     });
     final tagData = TagData.fromMap(result["tagData"]);
     return tagData;
@@ -140,7 +142,8 @@ class Reader extends Object {
     required MemoryBank memoryBank, 
     required int offset, 
     required Uint8List data, 
-    int password = 0
+    int password = 0, 
+    int maxRetries = 4
   }) async {
     final result = await FlutterZebraRfid._channel.invokeMethod('writeTag', { 
       "reader": this.id, 
@@ -148,7 +151,8 @@ class Reader extends Object {
       "memoryBank": memoryBank.key, 
       "offset": offset, 
       "data": hex.encode(data.toList()), 
-      "password": password
+      "password": password, 
+      "maxRetries": maxRetries
     });
     final tagData = TagData.fromMap(result["tagData"]);
     return tagData;

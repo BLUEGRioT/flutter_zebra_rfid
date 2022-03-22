@@ -105,6 +105,8 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             return
         }
 
+        val maxRetries = call.argument<Int>("maxRetries") ?: 10
+
         GlobalScope.launch {
             try {
                 val tagAccess = TagAccess()
@@ -115,7 +117,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                 writeAccessParams.byteOffset = offset * 2 // the parameter is in words
                 writeAccessParams.setWriteData(dataHex)
                 var tagData = TagData()
-                reader.rfidReader.Actions.TagAccess.writeWait(tagId, writeAccessParams, null, tagData)
+                _writeTag(maxRetries, reader.rfidReader, tagId, writeAccessParams, tagData)
                 Handler(Looper.getMainLooper()).post {
                     result.success(hashMapOf(
                             "status" to "OK",
@@ -134,6 +136,19 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
         }
     }
 
+    private fun _writeTag(remainingTries: Int, reader: RFIDReader, tagId: String, writeAccessParams: TagAccess.WriteAccessParams, tagData: TagData) {
+        try {
+            reader.Actions.TagAccess.writeWait(tagId, writeAccessParams, null, tagData)
+        }
+        catch (ex: Exception) {
+            if (remainingTries <= 0) {
+                throw ex
+            }
+            _writeTag(remainingTries - 1, reader, tagId, writeAccessParams, tagData)
+        }
+    }
+
+    private var isReading = false
     private fun readTag(call: MethodCall, result: MethodChannel.Result) {
         val readerId = call.argument<String>("reader") ?: run {
             result.error("INVALID_ARGUMENT", "Missing argument reader", null)
@@ -162,6 +177,15 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             return
         }
 
+        val maxRetries = call.argument<Int>("maxRetries") ?: 4
+
+        if (isReading) {
+            result.error("INVALID_STATE", "The device already is reading", null)
+            return
+        }
+
+        isReading = true
+
         GlobalScope.launch {
             try {
                 val tagAccess = TagAccess()
@@ -171,22 +195,37 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                 readAccessParams.memoryBank = parseMemoryBank(memoryBank)
                 readAccessParams.byteOffset = offset * 2 // the parameter is in words
 
-                val readAccessTag = reader.rfidReader.Actions.TagAccess.readWait(tagId, readAccessParams, null)
+                val readAccessTag = _readTag(maxRetries, reader.rfidReader, tagId, readAccessParams)
                 Handler(Looper.getMainLooper()).post {
                     result.success(hashMapOf(
                             "status" to "OK",
                             "tagData" to serializeTagData(readAccessTag, parseMemoryBank(memoryBank))
                     ))
                 }
+                isReading = false
             } catch (ex: InvalidUsageException) {
+                isReading = false
                 Handler(Looper.getMainLooper()).post {
                     result.error("READ_TAG_ERROR", ex.info, null)
                 }
             } catch (ex: OperationFailureException) {
+                isReading = false
                 Handler(Looper.getMainLooper()).post {
                     result.error("READ_TAG_ERROR", ex.vendorMessage, null)
                 }
             }
+        }
+    }
+
+    private fun _readTag(remainingTries: Int, reader: RFIDReader, tagId: String, readAccessParams: TagAccess.ReadAccessParams) : TagData {
+        try {
+            return reader.Actions.TagAccess.readWait(tagId, readAccessParams, null)
+        }
+        catch (ex: Exception) {
+            if (remainingTries <= 0) {
+                throw ex
+            }
+            return _readTag(remainingTries - 1, reader, tagId, readAccessParams)
         }
     }
 
@@ -247,19 +286,14 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             }
         }
         tagStorageSettings.tagFields = fields.toTypedArray()
+
+        if (reader.rfidReader.Config == null) {
+            configureReader(reader)
+        }
+
         reader.rfidReader.Config.tagStorageSettings = tagStorageSettings
-        //reader.rfidReader.Actions.PreFilters.deleteAll()
-
-        /*val filters = PreFilters()
-        val filter = filters.PreFilter()
-        filter.memoryBank = parseMemoryBank(memoryBank)
-        reader.rfidReader.Actions.PreFilters.add(filter)*/
-
-        //TODO("accessConfig")
 
         try {
-            //reader.rfidReader.Actions.Inventory.perform()
-
             val tagAccess = TagAccess()
             val readAccessParams = tagAccess.ReadAccessParams()
             readAccessParams.count = 0
@@ -340,8 +374,9 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             if (readers == null) {
                 readers = Readers(context, ENUM_TRANSPORT.BLUETOOTH)
             }
-            availableRFIDReaderList = ArrayList(readers!!.GetAvailableRFIDReaderList().filter { it.rfidReader.isConnected })
-            val items = availableRFIDReaderList!!.map {
+            availableRFIDReaderList = readers!!.GetAvailableRFIDReaderList()
+
+            val items = ArrayList(availableRFIDReaderList!!.filter { it.rfidReader.isConnected }).map {
                 hashMapOf(
                         "name" to it.name,
                         "id" to it.address
@@ -430,7 +465,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             }
         }
 
-        fun serializeTagData(tagData: TagData, memoryBank: MEMORY_BANK): HashMap<String, Any?> {
+        fun serializeTagData(tagData: TagData, memoryBank: MEMORY_BANK?): HashMap<String, Any?> {
             return hashMapOf(
                     "tagId" to tagData.tagID,
                     "firstSeenTime" to tagData.SeenTime?.upTime?.firstSeenTimeStamp,
