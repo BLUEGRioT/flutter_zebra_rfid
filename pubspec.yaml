@@ -1,6 +1,6 @@
 name: flutter_zebra_rfid
 description: A wrapper plugin for the iOS and Android SDK of Zebra RFID reader.
-version: 0.0.2
+version: 0.0.3
 author: Florent ROBIN
 #homepage:
 environment:

@@ -141,6 +141,11 @@ class FlutterZebraRfid {
           assert(args["id"] != null && args["id"] is String, "id argument is not defined or is not a String");
           _getAvailableReaderInfo(args)._eventCommunicationASCIIConnectionEstablished();
           break;
+
+        case "eventDisconnectionNotify":
+          assert(args["reader"] != null && args["reader"] is Map, "id argument is not defined or is not a Map");
+          _getAvailableReaderInfo(args["reader"])._eventDisconnectionNotify();
+          break;
         default:
       }
     });

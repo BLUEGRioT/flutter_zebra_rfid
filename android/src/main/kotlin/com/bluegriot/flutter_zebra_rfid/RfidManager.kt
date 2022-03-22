@@ -22,6 +22,7 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
             "getAvailableReaders" -> getAvailableReaders(result)
             "getActiveReaders" -> getActiveReaders(result)
             "connect" -> connect(call, result)
+            "getIsConnected" -> getIsConnected(call, result)
             "startInventory" -> startInventory(call, result)
             "stopInventory" -> stopInventory(call, result)
             "readTag" -> readTag(call, result)
@@ -287,6 +288,11 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
         }
         tagStorageSettings.tagFields = fields.toTypedArray()
 
+        if (!reader.rfidReader.isConnected) {
+            result.error("INVENTORY_ERROR", "The reader is not connected", null)
+            return
+        }
+
         if (reader.rfidReader.Config == null) {
             configureReader(reader)
         }
@@ -312,20 +318,46 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
         }
     }
 
-    private fun connect(call: MethodCall, result: MethodChannel.Result) {
+    private fun getIsConnected(call: MethodCall, result: MethodChannel.Result) {
+        val readerId = call.argument<String>("reader") ?: run {
+            result.error("INVALID_ARGUMENT", "Missing argument reader", null)
+            return
+        }
+
         GlobalScope.launch {
             try {
-                call.argument<String>("reader")?.let { readerId ->
-                    val reader = availableRFIDReaderList!!.first { it.address == readerId }
-                    if (!reader.rfidReader.isConnected) {
-                        reader.rfidReader.connect()
-                        configureReader(reader)
-                    }
-                    Handler(Looper.getMainLooper()).post {
-                        result.success(null)
-                    }
-                } ?: run {
-                    result.error("INVALID_ARGUMENT", "Missing argument reader", null)
+                val reader = availableRFIDReaderList!!.first { it.address == readerId }
+                Handler(Looper.getMainLooper()).post {
+                    result.success(reader.rfidReader.isConnected)
+                }
+            } catch (ex: InvalidUsageException) {
+                Handler(Looper.getMainLooper()).post {
+                    result.error("ERROR", ex.info, null)
+                }
+            } catch (ex: OperationFailureException) {
+                Handler(Looper.getMainLooper()).post {
+                    result.error("ERROR", ex.vendorMessage, null)
+                }
+            }
+        }
+    }
+
+    private fun connect(call: MethodCall, result: MethodChannel.Result) {
+        val readerId = call.argument<String>("reader") ?: run {
+            result.error("INVALID_ARGUMENT", "Missing argument reader", null)
+            return
+        }
+
+        val maxRetries = call.argument<Int>("maxRetries") ?: 4
+
+        GlobalScope.launch {
+            try {
+                val reader = availableRFIDReaderList!!.first { it.address == readerId }
+                if (!reader.rfidReader.isConnected) {
+                    _connect(maxRetries, reader)
+                }
+                Handler(Looper.getMainLooper()).post {
+                    result.success(null)
                 }
             } catch (ex: InvalidUsageException) {
                 Handler(Looper.getMainLooper()).post {
@@ -336,6 +368,21 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                     result.error("CONNECTION_ERROR", ex.vendorMessage, null)
                 }
             }
+        }
+    }
+
+    private fun _connect(remainingTries: Int, reader: ReaderDevice) {
+        try {
+            if (!reader.rfidReader.isConnected) {
+                reader.rfidReader.connect()
+            }
+            configureReader(reader)
+        }
+        catch (ex: Exception) {
+            if (remainingTries <= 0) {
+                throw ex
+            }
+            _connect(remainingTries - 1, reader)
         }
     }
 
@@ -598,8 +645,15 @@ class RfidManager(private var channel: MethodChannel, private var context: Conte
                                     "reader" to reader,
                                     "event" to serializeStatusEventType(this.statusEventType)!!,
                                     "data" to null
-                            )
-                            )
+                            ))
+                        }
+                    }
+
+                    STATUS_EVENT_TYPE.DISCONNECTION_EVENT -> {
+                        Handler(Looper.getMainLooper()).post {
+                            channel.invokeMethod("eventDisconnectionNotify", hashMapOf<String, Any?>(
+                                "reader" to reader
+                            ))
                         }
                     }
 

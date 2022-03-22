@@ -32,6 +32,8 @@ class Reader extends Object {
   Stream<int> get proximityStream => _proximityController.stream;
   Completer<void>? _connectionCompleter;
 
+  void Function()? onDisconnectedHandler;
+
   Reader({
     required this.id, 
     required this.name
@@ -47,18 +49,28 @@ class Reader extends Object {
     await _proximityController.close();
   }
 
-  Future<void> connect() async {
+  Future<bool> get isConnected async { 
+    bool result = await FlutterZebraRfid._channel.invokeMethod('getIsConnected', {
+      "reader": this.id
+    }) ?? false;
+    return result;
+  }
+
+  Future<void> connect({int maxRetries = 4}) async {
     _tagReadStreamController = StreamController<TagData>.broadcast();
     _readerTriggerController = StreamController<bool>.broadcast();
     _readerInventoringController = StreamController<bool>.broadcast();
     _proximityController = StreamController<int>.broadcast();
 
-    if (isActive) {
+    if (await isConnected) {
       return;
     }
 
     _connectionCompleter = Completer();
-    await FlutterZebraRfid._channel.invokeMethod('connect', { "reader": this.id});
+    await FlutterZebraRfid._channel.invokeMethod('connect', { 
+      "reader": this.id, 
+      "maxRetries": maxRetries
+    });
     if (Platform.isIOS) {
       await _connectionCompleter!.future;
     }
@@ -212,5 +224,11 @@ class Reader extends Object {
 
   void _eventBatteryNotify(String cause, int powerLevel, bool isCharging) {
     print("_eventBatteryNotify: ${this.name} => cause=$cause, powerLevel=$powerLevel , isCharging=$isCharging");
+  }
+
+  void _eventDisconnectionNotify() {
+    print("_eventDisconnectionNotify");
+    _isActive = false;
+    onDisconnectedHandler?.call();
   }
 }
